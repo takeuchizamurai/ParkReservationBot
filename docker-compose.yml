@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  reservation-bot:
+    build: .
+    volumes:
+      - ./account.csv:/app/account.csv:ro
+      - ./screenshots:/app/screenshots
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: "no"

@@ -1,0 +1,16 @@
+# アカウント情報（絶対に共有しない）
+account.csv
+ 
+# 実行時に生成される証跡画像
+screenshots/
+ 
+# Python キャッシュ
+__pycache__/
+*.pyc
+*.pyo
+ 
+# macOS
+.DS_Store
+ 
+# Docker
+*.log
