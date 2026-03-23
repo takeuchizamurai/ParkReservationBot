@@ -33,7 +33,7 @@ def run_check(playwright, account: dict) -> bool:
 	user_id  = str(account["user_id"])
 	password = str(account["password"])
 
-	browser = playwright.chromium.launch(headless=False)  # 動作確認しやすいよう headless=False
+	browser = playwright.chromium.launch(headless=True)  # 動作確認しやすいよう headless=False
 	context = browser.new_context(locale="ja-JP")
 	page	= context.new_page()
 
@@ -88,7 +88,7 @@ def run_check(playwright, account: dict) -> bool:
 
 		# ── 7. スクリーンショット保存 ────────────────────────────────
 		save_screenshot(page, user_id, "抽選申込確認")
-		log(user_id, "✅ キャプチャ完了")
+		log(user_id, "✅ キャプチャ完了！")
 		return True
 
 	except PlaywrightTimeoutError as e:

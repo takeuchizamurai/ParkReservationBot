@@ -14,4 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ソースコードのコピー
 COPY . .
 
-#s		CMD ["python", "main.py"]
+CMD ["tail", "-f", "/dev/null"]
+
+# py実行時は以下コマンド
+# docker exec -it parkreservationbot-reservation-bot-1 python main.py

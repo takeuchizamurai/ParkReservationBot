@@ -6,6 +6,7 @@ services:
     volumes:
       - ./account.csv:/app/account.csv:ro
       - ./screenshots:/app/screenshots
+      - .:/app   
     environment:
       - PYTHONUNBUFFERED=1
     restart: "no"
