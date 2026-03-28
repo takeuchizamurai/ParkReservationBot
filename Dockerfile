@@ -1,20 +1,23 @@
 FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 
-# 日本語フォントのインストール（スクリーンショットの文字化け防止）
+# 日本語フォント＋gitのインストール
 RUN apt-get update && apt-get install -y \
     fonts-noto-cjk \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# git cloneでプログラム取得
+RUN git clone https://github.com/あなたのリポジトリ/ParkReservationBot.git .
+
 # ライブラリのインストール
-COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ソースコードのコピー
-COPY . .
+# Playwrightブラウザのインストール
+RUN playwright install chromium
 
-CMD ["tail", "-f", "/dev/null"]
+# screenshotsフォルダ作成
+RUN mkdir -p /app/screenshots
 
-# py実行時は以下コマンド
-# docker exec -it parkreservationbot-reservation-bot-1 python main.py
+CMD ["python", "-u", "main.py"]

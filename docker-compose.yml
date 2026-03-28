@@ -6,7 +6,11 @@ services:
     volumes:
       - ./account.csv:/app/account.csv:ro
       - ./screenshots:/app/screenshots
-      - .:/app   
     environment:
       - PYTHONUNBUFFERED=1
     restart: "no"
+
+#1. Docker Desktop インストール
+#2. Dockerfile と docker-compose.yml をダウンロード
+#3. account.csv を同じフォルダに置く
+#4. docker-compose up --build
