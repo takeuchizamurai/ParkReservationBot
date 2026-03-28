@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # git cloneでプログラム取得
-RUN git clone https://github.com/あなたのリポジトリ/ParkReservationBot.git .
+RUN git clone https://github.com/takeuchizamurai/ParkReservationBot.git .
 
 # ライブラリのインストール
 RUN pip install --no-cache-dir -r requirements.txt
