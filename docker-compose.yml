@@ -11,6 +11,7 @@ services:
     restart: "no"
 
 #1. Docker Desktop インストール
-#2. Dockerfile と docker-compose.yml をダウンロード
+#2. Dockerfile と docker-compose.yml と requirements.txtをダウンロード
 #3. account.csv を同じフォルダに置く
-#4. docker-compose up --build
+#4. cmdで docker-compose create --build
+#5. 実行したいときはreservation-botを起動
