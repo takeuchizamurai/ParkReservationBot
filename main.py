@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 BASE_URL = "https://kouen.sports.metro.tokyo.lg.jp/web/"
 CSV_FILE = "account.csv"
 SCREENSHOT_DIR = "screenshots"
-STEP_TIMEOUT = 100000_000
+STEP_TIMEOUT = 10000_000
 
 PARK_CODE = {
     "日比谷公園":               "1301000",
@@ -55,7 +55,7 @@ def save_screenshot(page, user_id: str, label: str = ""):
     return path
 
 # ===== 1件分の抽選申込み処理 =====
-def apply_one(page, user_id: str, park_name: str, target_date: str, target_time: int, apply_no: int = 1):
+def apply_one(page, user_id: str, park_name: str, target_date: str, target_time: int, apply_no: int ):
 #def apply_one(page, user_id: str, park_name: str, target_date: str, target_time: int):
     park_code = PARK_CODE.get(park_name)
     if not park_code:
@@ -120,11 +120,11 @@ def apply_one(page, user_id: str, park_name: str, target_date: str, target_time:
 
     # ── 申込み番号を選択
     log(user_id, "申込み番号を選択...")
-    apply_value = f"{apply_no}-1"
+    apply_value = f"{apply_no}-1"  # 1件目="1-1", 2件目="2-1"
     page.locator("select[name='applyHopeNo']").click()
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(300)
     page.locator("select[name='applyHopeNo']").select_option(value=apply_value)
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(300)
 
     page.evaluate(f"""
         const obj = document.form1;
@@ -134,48 +134,34 @@ def apply_one(page, user_id: str, park_name: str, target_date: str, target_time:
         obj.selectHopeNo.value = result[1];
     """)
 
-    # ── 送信
+    # ── 送信（ダイアログをacceptして確定）
     log(user_id, "申込みを送信...")
-    page.once("dialog", lambda dialog: dialog.accept())
-    page.wait_for_timeout(1000)
-    page.locator("button#btn-go").click()
+    dialog_message = []
 
-    # reCAPTCHAが出た場合に手動で解いてもらう
-    log(user_id, "⚠️ reCAPTCHAが表示された場合は手動でチェックしてください")
-    try:
-        # reCAPTCHA完了後またはそのままnetworkidleになるまで待機
-        page.wait_for_load_state("networkidle", timeout=60_000)
-    except PlaywrightTimeoutError:
-        # タイムアウトしても続行（手動操作中の可能性）
-        page.wait_for_load_state("networkidle", timeout=STEP_TIMEOUT)
+    def handle_dialog(dialog):
+        dialog_message.append(dialog.message)
+        dialog.accept()
 
-    log(user_id, f"ダイアログ処理完了")
-    
+    page.on("dialog", handle_dialog)
+    page.evaluate("sendLotApply(document.form1, gLotWInstLotApplyAction, new Event('click'))")
+    page.wait_for_timeout(2000)
+    if dialog_message:
+        log(user_id, f"ダイアログ検出: {dialog_message[0]}")
+    page.wait_for_load_state("networkidle", timeout=STEP_TIMEOUT)
+
     # ── 完了確認＆スクリーンショット
     save_screenshot(page, user_id, f"完了_{park_name}")
     log(user_id, f"=== 申込み完了: {park_name} {target_date} {target_time}時 ===")
     print(page.locator("main").inner_text()[:300])
 
 # ===== メイン処理 =====
-def run_check(playwright, account: dict) -> bool:
+def run_check(playwright, account: dict, apply_no: int) -> bool:
+    """1回のブラウザセッションで1件の抽選申込みを行う"""
     user_id  = str(account["user_id"])
     password = str(account["password"])
-    CHROME_PROFILE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chrome_profile")
-    # Chromeが完全に閉じている状態で実行すること
-    context = playwright.chromium.launch_persistent_context(
-        user_data_dir=CHROME_PROFILE_DIR,
-        channel="chrome",
-        headless=False,
-        args=["--disable-blink-features=AutomationControlled"],
-        locale="ja-JP",
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    )
-    context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-    page = context.new_page()
 
-    """
     browser = playwright.chromium.launch(
-        headless=False,# DockerのときはTrue
+        headless=False,
         args=["--disable-blink-features=AutomationControlled"]
     )
     context = browser.new_context(
@@ -184,10 +170,9 @@ def run_check(playwright, account: dict) -> bool:
     )
     context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
     page = context.new_page()
-    """
 
     try:
-        # ── 1. トップページへ移動（Sorryページ / about:blank はリトライ）
+        # ── 1. トップページへ移動
         log(user_id, "サイトへアクセス中...")
         MAX_RETRY = 30
         for attempt in range(1, MAX_RETRY + 1):
@@ -214,7 +199,7 @@ def run_check(playwright, account: dict) -> bool:
             log(user_id, "サイトへのアクセス成功")
             break
         else:
-            raise Exception("サイトへのアクセスに失敗しました（about:blank / Sorryページ）")
+            raise Exception("サイトへのアクセスに失敗しました")
 
         # ── 2. ログインボタン押下
         log(user_id, "ログイン画面へ移動中...")
@@ -243,33 +228,17 @@ def run_check(playwright, account: dict) -> bool:
         page.locator("button.btn-primary[onclick='javascript:doLotEntry(\"130\")']").click()
         page.wait_for_load_state("networkidle", timeout=STEP_TIMEOUT)
 
-        # ── 7. 1件目の申込み
-        log(user_id, "=== 1件目の申込み開始 ===")
+        # ── 7. 申込み（apply_noに応じて1件目or2件目）
+        log(user_id, f"=== {apply_no}件目の申込み開始 ===")
         apply_one(
             page, user_id,
-            str(account["park_name1"]),
-            str(account["target_date1"]),
-            int(account["target_time1"]),
-            apply_no=1
+            str(account[f"park_name{apply_no}"]),
+            str(account[f"target_date{apply_no}"]),
+            int(account[f"target_time{apply_no}"]),
+            apply_no=apply_no
         )
 
-        # ── 8. 「続けて申込み」ボタンをクリックして2件目へ
-        log(user_id, "「続けて申込み」ボタンをクリック...")
-        page.wait_for_timeout(3000)  # ← 追加
-        page.get_by_role("button", name="続けて申込み").click()
-        page.wait_for_load_state("networkidle", timeout=STEP_TIMEOUT)
-
-        # ── 9. 2件目の申込み
-        log(user_id, "=== 2件目の申込み開始 ===")
-        apply_one(
-            page, user_id,
-            str(account["park_name2"]),
-            str(account["target_date2"]),
-            int(account["target_time2"]),
-            apply_no=2
-        )
-
-        log(user_id, "✅ 全申込み完了")
+        log(user_id, f"✅ {apply_no}件目の申込み完了")
         return True
 
     except PlaywrightTimeoutError as e:
@@ -281,8 +250,8 @@ def run_check(playwright, account: dict) -> bool:
         save_screenshot(page, user_id, "error")
         return False
     finally:
-        context.close()
-        #browser.close()
+        browser.close()
+
 
 # ===== エントリーポイント =====
 def main():
@@ -301,17 +270,21 @@ def main():
     results = []
     with sync_playwright() as playwright:
         for _, row in df.iterrows():
-            ok = run_check(playwright, row)
-            results.append({"user_id": row["user_id"], "success": ok})
+            # 1件目
+            ok1 = run_check(playwright, row, apply_no=1)
+            time.sleep(5)  # ブラウザ間のインターバル
+            # 2件目
+            ok2 = run_check(playwright, row, apply_no=2)
+            results.append({
+                "user_id": row["user_id"],
+                "ok1": ok1,
+                "ok2": ok2,
+            })
             time.sleep(2)
 
     print("\n===== 実行結果サマリー =====")
     for r in results:
-        status = "✅ 成功" if r["success"] else "❌ 失敗"
-        print(f"  {r['user_id']}: {status}")
-    total = len(results)
-    success = sum(1 for r in results if r["success"])
-    print(f"\n{total} 件中 {success} 件成功\n")
-
-if __name__ == "__main__":
-    main()
+        s1 = "✅" if r["ok1"] else "❌"
+        s2 = "✅" if r["ok2"] else "❌"
+        print(f"  {r['user_id']}: 1件目={s1} 2件目={s2}")
+    print()
