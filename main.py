@@ -147,16 +147,10 @@ def apply_one(page, user_id: str, park_name: str, target_date: str, target_time:
     page.wait_for_timeout(2000)
     if dialog_message:
         log(user_id, f"ダイアログ検出: {dialog_message[0]}")
-    page.wait_for_load_state("networkidle", timeout=STEP_TIMEOUT)
-
-    # reCAPTCHAが出た場合に手動で解いてもらう
+    
+    # ── reCAPTCHAが出た場合に手動で解いてもらう（ここのtimeoutを長くする）
     log(user_id, "⚠️ reCAPTCHAが表示された場合は手動でチェックしてください")
-    try:
-    # reCAPTCHA完了後またはそのままnetworkidleになるまで待機
-        page.wait_for_load_state("networkidle", timeout=180_000)
-    except PlaywrightTimeoutError:
-        # タイムアウトしても続行（手動操作中の可能性）
-        page.wait_for_load_state("networkidle", timeout=STEP_TIMEOUT)
+    page.locator("text=抽選の申込みが完了しました").wait_for(timeout=300000)  # 最大5分待機
 
     # ── 完了確認＆スクリーンショット
     save_screenshot(page, user_id, f"完了_{park_name}")
@@ -260,7 +254,31 @@ def run_check(playwright, account: dict) -> bool:
             int(account["target_time2"]),
             apply_no=2
         )
+        # ── reCAPTCHAが出た場合に手動で解いてもらう（ここのtimeoutを長くする）
+        log(user_id, "⚠️ reCAPTCHAが表示された場合は手動でチェックしてください")
+        page.wait_for_load_state("networkidle", timeout=180_000)  # 3分待機
 
+
+        # ── 10. 抽選申込み証跡取得 ─────────────────────
+        log(user_id, "「抽選」メニューを開く...")
+        page.locator("a.dropdown-toggle", has_text="抽選").click()
+        page.wait_for_timeout(500)  # ドロップダウン展開待ち
+
+		# ── 11. 「抽選申し込みの確認」をクリック ─────────────────────
+        log(user_id, "「抽選申し込みの確認」へ移動...")
+        page.get_by_role("link", name="抽選申込みの確認").click()  # 「申し込み」→「申込み」に修正
+        page.wait_for_load_state("networkidle")
+
+		# ── 12. 「マイメニュー」をクリックしてユーザー名を表示 ────────
+        log(user_id, "「マイメニュー」を開く...")
+        page.locator("#userName").click()
+
+		# マイメニューのドロップダウンが表示されるまで少し待機
+        page.wait_for_timeout(500)
+
+		# ── 13. スクリーンショット保存 ────────────────────────────────
+        save_screenshot(page, user_id, "抽選申込確認")
+        log(user_id, "✅ キャプチャ完了")
         log(user_id, "✅ 全申込み完了")
         return True
 
