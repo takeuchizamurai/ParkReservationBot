@@ -1,6 +1,8 @@
 FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 
 # 日本語フォント＋gitのインストール
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Tokyo
 RUN apt-get update && apt-get install -y \
     fonts-noto-cjk \
     git \
@@ -9,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     fluxbox \
     novnc \
     websockify \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
