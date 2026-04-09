@@ -4,6 +4,11 @@ FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 RUN apt-get update && apt-get install -y \
     fonts-noto-cjk \
     git \
+    xvfb \
+    x11vnc \
+    fluxbox \
+    novnc \
+    websockify \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -20,4 +25,7 @@ RUN playwright install chromium
 # screenshotsフォルダ作成
 RUN mkdir -p /app/screenshots
 
-CMD ["python", "-u", "main.py"]
+# プログラム実行準備
+RUN chmod +x /app/start.sh
+EXPOSE 6080 5900
+CMD ["/app/start.sh"]

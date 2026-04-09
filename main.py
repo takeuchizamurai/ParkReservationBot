@@ -148,12 +148,11 @@ def apply_one(page, user_id: str, park_name: str, target_date: str, target_time:
     if dialog_message:
         log(user_id, f"ダイアログ検出: {dialog_message[0]}")
     
-    # ── reCAPTCHAが出た場合に手動で解いてもらう（ここのtimeoutを長くする）
+    # ── reCAPTCHAが出た場合に手動で解いてもらう
     log(user_id, "⚠️ reCAPTCHAが表示された場合は手動でチェックしてください")
     page.locator("text=抽選の申込みが完了しました").wait_for(timeout=300000)  # 最大5分待機
 
-    # ── 完了確認＆スクリーンショット
-    save_screenshot(page, user_id, f"完了_{park_name}")
+    # ── 完了
     log(user_id, f"=== 申込み完了: {park_name} {target_date} {target_time}時 ===")
     print(page.locator("main").inner_text()[:300])
 
@@ -268,6 +267,7 @@ def run_check(playwright, account: dict) -> bool:
         log(user_id, "「抽選申し込みの確認」へ移動...")
         page.get_by_role("link", name="抽選申込みの確認").click()  # 「申し込み」→「申込み」に修正
         page.wait_for_load_state("networkidle")
+        save_screenshot(page, user_id, "抽選申込確認")
 
 		# ── 12. 「マイメニュー」をクリックしてユーザー名を表示 ────────
         log(user_id, "「マイメニュー」を開く...")
@@ -277,7 +277,7 @@ def run_check(playwright, account: dict) -> bool:
         page.wait_for_timeout(500)
 
 		# ── 13. スクリーンショット保存 ────────────────────────────────
-        save_screenshot(page, user_id, "抽選申込確認")
+        save_screenshot(page, user_id, "抽選申込確認名前付")
         log(user_id, "✅ キャプチャ完了")
         log(user_id, "✅ 全申込み完了")
         return True
